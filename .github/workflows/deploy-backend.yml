@@ -1,0 +1,74 @@
+name: Deploy Backend (SAM)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - "infra/**"
+      - "backend/**"
+      - ".github/workflows/deploy-backend.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      STACK: cfo-agent-backend
+      ARTIFACT_BUCKET: cfo-agent-sam-140023363799-us-east-1
+      JWT_ISSUER: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_iYy4rHYcE"
+      JWT_AUDIENCE: "3728jgdnb4hotp6mcomcco7013"
+      AGENT_ID: "UB0FKHQWC6"
+      AGENT_ALIAS_ID: "A49HOKQII2"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Install SAM CLI
+        uses: aws-actions/setup-sam@v2
+
+      - name: Ensure artifact bucket exists
+        run: |
+          set -e
+          if ! aws s3api head-bucket --bucket "$ARTIFACT_BUCKET" 2>/dev/null; then
+            aws s3api create-bucket --bucket "$ARTIFACT_BUCKET" --region "${{ secrets.AWS_REGION }}"
+          fi
+
+      - name: SAM Validate
+        working-directory: infra
+        run: sam validate
+
+      - name: SAM Build
+        working-directory: infra
+        run: sam build
+
+      - name: SAM Deploy
+        working-directory: infra
+        run: |
+          sam deploy \
+            --stack-name "$STACK" \
+            --s3-bucket  "$ARTIFACT_BUCKET" \
+            --region     "${{ secrets.AWS_REGION }}" \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              JwtIssuer="$JWT_ISSUER" \
+              JwtAudience="$JWT_AUDIENCE" \
+              AgentId="$AGENT_ID" \
+              AgentAliasId="$AGENT_ALIAS_ID"
+
+      - name: Print ApiUrl output
+        run: |
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK" --region "${{ secrets.AWS_REGION }}" \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text)
+          echo "API_URL=$API_URL" >> $GITHUB_ENV
+          echo "API_URL: $API_URL"

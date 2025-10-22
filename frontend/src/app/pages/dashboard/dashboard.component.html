@@ -1,0 +1,9 @@
+<div *ngIf="loading">Cargando KPIs...</div>
+<div *ngIf="!loading">
+  <div class="cards">
+    <div class="card">Ventas 30d: {{ kpis?.revenue | currency }}</div>
+    <div class="card">Margen 30d: {{ kpis?.gross_margin | currency }}</div>
+    <div class="card">AR Total: {{ kpis?.ar_total | currency }}</div>
+    <div class="card">AR > 60d: {{ kpis?.ar_over_60 | currency }}</div>
+  </div>
+</div>

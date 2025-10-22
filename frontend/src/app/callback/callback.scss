@@ -1,0 +1,22 @@
+.callback-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+.callback-content {
+  text-align: center;
+  padding: 40px;
+}
+
+.callback-content h2 {
+  margin: 20px 0 10px 0;
+  color: #333;
+}
+
+.callback-content p {
+  color: #666;
+  margin: 0;
+}

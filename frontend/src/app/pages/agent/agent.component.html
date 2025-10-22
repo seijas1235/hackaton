@@ -1,0 +1,11 @@
+<div class="chat">
+  <div class="msgs">
+    <div *ngFor="let m of messages" [class.me]="m.role==='user'">
+      <b>{{ m.role }}:</b> {{ m.text }}
+    </div>
+  </div>
+  <div class="input">
+    <input [(ngModel)]="prompt" placeholder="Escribe tu pregunta..." />
+    <button (click)="send()" [disabled]="loading">Enviar</button>
+  </div>
+</div>

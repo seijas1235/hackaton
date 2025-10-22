@@ -1,0 +1,105 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: CFO-as-a-Service Backend (HTTP API + Lambdas + DynamoDB)
+
+Parameters:
+  JwtIssuer: { Type: String, Description: 'Cognito Issuer URL' }
+  JwtAudience: { Type: String, Description: 'Cognito App Client ID (audience)' }
+  AgentId: { Type: String, Default: "" }
+  AgentAliasId: { Type: String, Default: "" }
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        TABLE_NAME: finance
+        AWS_REGION: us-east-1
+        AGENT_ID: !Ref AgentId
+        AGENT_ALIAS_ID: !Ref AgentAliasId
+
+Resources:
+  FinanceTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      TableName: finance
+      PrimaryKey: { Name: pk, Type: String }
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Auth:
+        DefaultAuthorizer: CognitoJWT
+        Authorizers:
+          CognitoJWT:
+            JwtConfiguration:
+              issuer: !Ref JwtIssuer
+              audience: [!Ref JwtAudience]
+            IdentitySource: "$request.header.Authorization"
+      CorsConfiguration:
+        AllowOrigins: ['*']
+        AllowHeaders: ['*']
+        AllowMethods: ['GET','POST','OPTIONS']
+
+  GetKPIs:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: src/adapters/handlers/get_kpis.handler
+      Policies: [{ DynamoDBReadPolicy: { TableName: finance } }]
+      Events: { Api: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /agent/tools/kpis, Method: GET } } }
+
+  Cashflow:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: src/adapters/handlers/cashflow_forecast.handler
+      Policies: [{ DynamoDBReadPolicy: { TableName: finance } }]
+      Events: { Api: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /agent/tools/cashflow, Method: GET } } }
+
+  Anomalies:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: src/adapters/handlers/detect_anomalies.handler
+      Policies: [{ DynamoDBReadPolicy: { TableName: finance } }]
+      Events: { Api: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /agent/tools/anomalies, Method: GET } } }
+
+  CreateReminder:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: src/adapters/handlers/create_collection_reminder.handler
+      Policies: [{ DynamoDBCrudPolicy: { TableName: finance } }]
+      Events: { Api: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /agent/actions/collection-reminder, Method: POST } } }
+
+  ListActions:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: src/adapters/handlers/list_actions.handler
+      Policies: [{ DynamoDBReadPolicy: { TableName: finance } }]
+      Events: { Api: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /agent/actions, Method: GET } } }
+
+  AgentChat:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: src/adapters/handlers/agent_chat.handler
+      Timeout: 60
+      Policies:
+        - Statement:
+            Effect: Allow
+            Action: [ "bedrock:InvokeAgent", "bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream" ]
+            Resource: "*"
+      Events: { Api: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /agent/chat, Method: POST } } }
+
+Outputs:
+  ApiUrl:
+    Description: Base URL of the HTTP API
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  TableName:
+    Description: DynamoDB Table
+    Value: finance

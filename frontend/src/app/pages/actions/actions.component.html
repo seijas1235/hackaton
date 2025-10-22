@@ -1,0 +1,10 @@
+<div *ngIf="loading">Cargando acciones...</div>
+<table *ngIf="!loading">
+  <tr><th>Fecha</th><th>Acción</th><th>Estado</th><th>Por</th></tr>
+  <tr *ngFor="let r of rows">
+    <td>{{ r.created_at }}</td>
+    <td>{{ r.action }}</td>
+    <td>{{ r.status }}</td>
+    <td>{{ r.created_by }}</td>
+  </tr>
+</table>
