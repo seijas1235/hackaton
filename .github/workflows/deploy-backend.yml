@@ -13,7 +13,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      STACK: cfo-agent-backend
+      STACK: cfo-agent-backend-rc1
       ARTIFACT_BUCKET: cfo-agent-sam-140023363799-us-east-1
       JWT_ISSUER: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_iYy4rHYcE"
       JWT_AUDIENCE: "3728jgdnb4hotp6mcomcco7013"
