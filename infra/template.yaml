@@ -16,7 +16,6 @@ Globals:
     Environment:
       Variables:
         TABLE_NAME: finance
-        AWS_REGION: us-east-1
         AGENT_ID: !Ref AgentId
         AGENT_ALIAS_ID: !Ref AgentAliasId
 
