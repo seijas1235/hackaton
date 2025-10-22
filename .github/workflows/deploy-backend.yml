@@ -13,12 +13,13 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      STACK: cfo-agent-backend-rc1
+      STACK: cfo-agent-backend-rc2
       ARTIFACT_BUCKET: cfo-agent-sam-140023363799-us-east-1
       JWT_ISSUER: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_iYy4rHYcE"
       JWT_AUDIENCE: "3728jgdnb4hotp6mcomcco7013"
       AGENT_ID: "UB0FKHQWC6"
       AGENT_ALIAS_ID: "A49HOKQII2"
+      AWS_REGION: us-east-1   # <- región para el CLI (no afecta las Lambdas)
 
     steps:
       - name: Checkout
@@ -29,16 +30,18 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Install SAM CLI
         uses: aws-actions/setup-sam@v2
 
       - name: Ensure artifact bucket exists
+        shell: bash
         run: |
           set -e
           if ! aws s3api head-bucket --bucket "$ARTIFACT_BUCKET" 2>/dev/null; then
-            aws s3api create-bucket --bucket "$ARTIFACT_BUCKET" --region "${{ secrets.AWS_REGION }}"
+            # us-east-1 no requiere LocationConstraint
+            aws s3api create-bucket --bucket "$ARTIFACT_BUCKET" --region "$AWS_REGION"
           fi
 
       - name: SAM Validate
@@ -55,7 +58,7 @@ jobs:
           sam deploy \
             --stack-name "$STACK" \
             --s3-bucket  "$ARTIFACT_BUCKET" \
-            --region     "${{ secrets.AWS_REGION }}" \
+            --region     "$AWS_REGION" \
             --capabilities CAPABILITY_IAM \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
@@ -66,9 +69,33 @@ jobs:
               AgentAliasId="$AGENT_ALIAS_ID"
 
       - name: Print ApiUrl output
+        id: outputs
+        shell: bash
         run: |
           API_URL=$(aws cloudformation describe-stacks \
-            --stack-name "$STACK" --region "${{ secrets.AWS_REGION }}" \
+            --stack-name "$STACK" --region "$AWS_REGION" \
             --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text)
           echo "API_URL=$API_URL" >> $GITHUB_ENV
+          echo "API_URL=$API_URL" >> $GITHUB_OUTPUT
           echo "API_URL: $API_URL"
+
+      - name: Add ApiUrl to Job Summary
+        if: always()
+        run: |
+          echo "## Deployment Outputs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**API_URL:** ${API_URL}" >> $GITHUB_STEP_SUMMARY
+
+      # (Opcional) Semilla de datos post-deploy:
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Seed DynamoDB sample data
+        env:
+          TABLE_NAME: finance
+          AWS_REGION: ${{ env.AWS_REGION }}
+        run: |
+          python -m pip install -U pip
+          python -m pip install -r backend/requirements.txt || true
+          python -m backend.tools.seed_data
