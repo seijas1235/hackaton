@@ -19,7 +19,7 @@ jobs:
       JWT_AUDIENCE: "3728jgdnb4hotp6mcomcco7013"
       AGENT_ID: "UB0FKHQWC6"
       AGENT_ALIAS_ID: "A49HOKQII2"
-      AWS_REGION: us-east-1   # <- región para el CLI (no afecta las Lambdas)
+      AWS_REGION: us-east-1
 
     steps:
       - name: Checkout
@@ -40,8 +40,21 @@ jobs:
         run: |
           set -e
           if ! aws s3api head-bucket --bucket "$ARTIFACT_BUCKET" 2>/dev/null; then
-            # us-east-1 no requiere LocationConstraint
             aws s3api create-bucket --bucket "$ARTIFACT_BUCKET" --region "$AWS_REGION"
+          fi
+
+      - name: If stack is ROLLBACK_COMPLETE, delete and wait
+        shell: bash
+        run: |
+          set -e
+          STATUS=$(aws cloudformation describe-stacks --stack-name "$STACK" --region "$AWS_REGION" \
+                    --query "Stacks[0].StackStatus" --output text 2>/dev/null || echo "NOT_FOUND")
+          echo "Current stack status: $STATUS"
+          if [ "$STATUS" = "ROLLBACK_COMPLETE" ]; then
+            echo "Deleting stack $STACK ..."
+            aws cloudformation delete-stack --stack-name "$STACK" --region "$AWS_REGION"
+            aws cloudformation wait stack-delete-complete --stack-name "$STACK" --region "$AWS_REGION"
+            echo "Stack deleted."
           fi
 
       - name: SAM Validate
@@ -51,6 +64,17 @@ jobs:
       - name: SAM Build
         working-directory: infra
         run: sam build
+
+      - name: Show built template & guard against reserved keys
+        working-directory: infra
+        shell: bash
+        run: |
+          echo ">>> Searching for AWS_REGION in built template"
+          if grep -n "AWS_REGION" .aws-sam/build/template.yaml; then
+            echo "ERROR: Found AWS_REGION in Lambda env vars of BUILT template. Remove it from infra/template.yaml and commit again." >&2
+            sed -n '1,200p' .aws-sam/build/template.yaml | sed -n '1,200p'
+            exit 1
+          fi
 
       - name: SAM Deploy
         working-directory: infra
@@ -85,17 +109,3 @@ jobs:
           echo "## Deployment Outputs" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**API_URL:** ${API_URL}" >> $GITHUB_STEP_SUMMARY
-
-      # (Opcional) Semilla de datos post-deploy:
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Seed DynamoDB sample data
-        env:
-          TABLE_NAME: finance
-          AWS_REGION: ${{ env.AWS_REGION }}
-        run: |
-          python -m pip install -U pip
-          python -m pip install -r backend/requirements.txt || true
-          python -m backend.tools.seed_data
