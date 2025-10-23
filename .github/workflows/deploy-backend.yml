@@ -63,7 +63,7 @@ jobs:
 
       - name: SAM Build
         working-directory: infra
-        run: sam build
+        run: sam build --use-container
 
       - name: Show built template & guard against reserved keys
         working-directory: infra
