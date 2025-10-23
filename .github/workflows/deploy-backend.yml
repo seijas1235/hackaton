@@ -93,38 +93,54 @@ jobs:
           rm -rf .aws-sam
           sam build --use-container
 
-      - name: Inspect built Lambda contents (site-packages)
+      - name: Inspect built artifacts (functions & layer)
         working-directory: infra
         shell: bash
         run: |
           set -e
-          echo "List functions built:"
+          echo "== Functions built =="
           find .aws-sam/build -mindepth 1 -maxdepth 1 -type d -printf " - %f\n" || true
           echo "----"
-          missing=0
+
+          # 1) Revisar funciones (pueden no tener site-packages si no hubo deps)
+          func_missing=0
           while IFS= read -r -d '' fn; do
             echo "Function dir: $fn"
             sp=$(find "$fn" -type d -path "*/site-packages" -print -quit || true)
             if [ -z "$sp" ]; then
-              echo "  (no site-packages found)"
-              missing=1
-              continue
-            fi
-            echo "  site-packages: $sp"
-            ls -1 "$sp" | sed 's/^/    /' || true
-            echo "  Checking for pydantic & pydantic_core..."
-            if ! ls -1 "$sp" | grep -Eq '^pydantic(_core)?|^pydantic$'; then
-              echo "  >>> MISSING pydantic in $fn"
-              missing=1
+              echo "  (no site-packages found in function - puede ser normal si no hay deps locales)"
             else
-              echo "  OK: pydantic present"
+              echo "  site-packages: $sp"
+              ls -1 "$sp" | sed 's/^/    /' || true
+              if ! ls -1 "$sp" | grep -Eq '^pydantic(_core)?|^pydantic$'; then
+                echo "  (pydantic no está en la función; dependerá de la Layer)"
+                func_missing=1
+              else
+                echo "  OK: pydantic presente en la función"
+              fi
             fi
             echo "----"
-          done < <(find .aws-sam/build -mindepth 1 -maxdepth 1 -type d -print0)
+          done < <(find .aws-sam/build -mindepth 1 -maxdepth 1 -type d -not -name "CommonDepsLayer*" -print0)
 
-          if [ "$missing" -ne 0 ]; then
-            echo "At least one function is missing pydantic in the built artifact"; exit 2
+          # 2) Revisar Layer
+          echo "== Layer contents =="
+          layer_dir=$(find .aws-sam/build -maxdepth 1 -type d -name "CommonDepsLayer*" -print -quit)
+          if [ -z "$layer_dir" ]; then
+            echo "ERROR: Layer CommonDepsLayer no fue construida"; exit 2
           fi
+          echo "Layer dir: $layer_dir"
+          sp=$(find "$layer_dir" -type d -path "*/python/lib/python3.12/site-packages" -print -quit || true)
+          if [ -z "$sp" ]; then
+            echo "ERROR: No se encontró site-packages dentro de la Layer"; exit 2
+          fi
+          echo "Layer site-packages: $sp"
+          ls -1 "$sp" | sed 's/^/  /' | head -n 200 || true
+
+          echo "Verificando pydantic en Layer..."
+          if ! ls -1 "$sp" | grep -Eq '^pydantic(_core)?|^pydantic$'; then
+            echo "ERROR: pydantic no está en la Layer"; exit 2
+          fi
+          echo "OK: pydantic está en la Layer"
 
       - name: Show built template & guard against reserved keys
         working-directory: infra

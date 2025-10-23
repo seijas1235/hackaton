@@ -42,6 +42,16 @@ Resources:
         AllowHeaders: ['*']
         AllowMethods: ['GET','POST','OPTIONS']
 
+  # ---------- LAYER con dependencias comunes (pydantic) ----------
+  CommonDepsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: common-deps-py312
+      ContentUri: layers/common-deps
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+
   GetKPIs:
     Type: AWS::Serverless::Function
     Properties:
@@ -50,6 +60,8 @@ Resources:
       Policies:
         - DynamoDBReadPolicy:
             TableName: finance
+      Layers:
+        - !Ref CommonDepsLayer
       Events:
         Api:
           Type: HttpApi
@@ -66,6 +78,8 @@ Resources:
       Policies:
         - DynamoDBReadPolicy:
             TableName: finance
+      Layers:
+        - !Ref CommonDepsLayer
       Events:
         Api:
           Type: HttpApi
@@ -82,6 +96,8 @@ Resources:
       Policies:
         - DynamoDBReadPolicy:
             TableName: finance
+      Layers:
+        - !Ref CommonDepsLayer
       Events:
         Api:
           Type: HttpApi
@@ -98,6 +114,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: finance
+      Layers:
+        - !Ref CommonDepsLayer
       Events:
         Api:
           Type: HttpApi
@@ -114,6 +132,8 @@ Resources:
       Policies:
         - DynamoDBReadPolicy:
             TableName: finance
+      Layers:
+        - !Ref CommonDepsLayer
       Events:
         Api:
           Type: HttpApi
@@ -136,6 +156,8 @@ Resources:
               - "bedrock:InvokeModel"
               - "bedrock:InvokeModelWithResponseStream"
             Resource: "*"
+      Layers:
+        - !Ref CommonDepsLayer
       Events:
         Api:
           Type: HttpApi
