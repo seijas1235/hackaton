@@ -64,6 +64,23 @@ jobs:
       - name: SAM Build
         working-directory: infra
         run: sam build --use-container
+        
+      - name: Inspect built Lambda contents (site-packages)
+        working-directory: infra
+        run: |
+          set -e
+          echo "List functions built:"
+          find .aws-sam/build -maxdepth 1 -type d -printf "%f\n" | sed 's/^/ - /'
+          echo "----"
+          # Cambia <GetKpisFunctionLogicalId> por el LogicalId real de tu función
+          FUNC_DIR=$(ls -d .aws-sam/build/* | grep -i '<GetKpisFunctionLogicalId>')
+          echo "Function dir: $FUNC_DIR"
+          echo "Python libs under site-packages:"
+          find "$FUNC_DIR" -type d -path "*/site-packages" -print -exec ls -1 "{}" \; | sed 's/^/   /'
+          echo "Check for pydantic and pydantic_core:"
+          if ! find "$FUNC_DIR" -type d -path "*/site-packages" -exec bash -lc 'ls -1 "{}" | grep -E "^pydantic|pydantic_core"' \; ; then
+            echo ">>> MISSING pydantic in built artifact" ; exit 2
+          fi
 
       - name: Show built template & guard against reserved keys
         working-directory: infra
