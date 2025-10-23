@@ -15,8 +15,8 @@ jobs:
     env:
       STACK: cfo-agent-backend-rc2
       ARTIFACT_BUCKET: cfo-agent-sam-140023363799-us-east-1
-      JWT_ISSUER: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_iYy4rHYcE"
-      JWT_AUDIENCE: "3728jgdnb4hotp6mcomcco7013"
+      JWT_ISSUER: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_aVGk2nc5h"
+      JWT_AUDIENCE: "7du031jrk1stsb33rskrs9d516"
       AGENT_ID: "UB0FKHQWC6"
       AGENT_ALIAS_ID: "A49HOKQII2"
       AWS_REGION: us-east-1
