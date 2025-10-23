@@ -60,6 +60,32 @@ jobs:
       - name: SAM Validate
         working-directory: infra
         run: sam validate
+      - name: Sanitize requirements.txt (encoding & EOL)
+        run: |
+          set -e
+          test -f backend/requirements.txt || { echo "backend/requirements.txt not found"; exit 1; }
+          echo "File info BEFORE:"
+          file -bi backend/requirements.txt || true
+          head -c 64 backend/requirements.txt | hexdump -C || true
+
+          # Si está en UTF-16/UTF-16LE/UTF-16BE, convertir a UTF-8
+          if file backend/requirements.txt | grep -qi 'utf-16'; then
+            echo "Converting from UTF-16 to UTF-8..."
+            iconv -f utf-16 -t utf-8 backend/requirements.txt > backend/requirements.utf8
+            mv backend/requirements.utf8 backend/requirements.txt
+          fi
+
+          # Quitar BOM UTF-8 si existe
+          perl -i -pe 'BEGIN{binmode(STDIN); binmode(STDOUT)} s/^\xEF\xBB\xBF//' backend/requirements.txt
+
+          # Normalizar saltos de línea a LF
+          sed -i 's/\r$//' backend/requirements.txt
+
+          echo "File info AFTER:"
+          file -bi backend/requirements.txt || true
+          head -n 50 backend/requirements.txt | sed -n '1,50p'
+
+
 
       - name: SAM Build
         working-directory: infra
