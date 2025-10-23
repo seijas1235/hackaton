@@ -65,7 +65,7 @@ jobs:
         working-directory: infra
         run: |
           rm -rf .aws-sam
-          sam build --use-container --cached=false
+          sam build --use-container
 
       - name: Inspect built Lambda contents (site-packages)
         working-directory: infra
