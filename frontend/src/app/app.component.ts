@@ -9,8 +9,9 @@ import { AuthService } from './core/auth.service';
   imports: [CommonModule, RouterOutlet, RouterLink],
   templateUrl: './app.component.html'
 })
-export class App {
+export class AppComponent {
   constructor(public auth: AuthService) {}
+  // SRP: AppComponent solo orquesta la vista raíz.
   readonly isAuth = computed(() => !!this.auth.getAccessToken());
   login()  { this.auth.login(); }
   logout() { this.auth.logout(); }

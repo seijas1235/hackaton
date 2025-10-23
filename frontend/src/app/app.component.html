@@ -1,0 +1,13 @@
+<header style="display:flex;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid #eee">
+  <strong>CFO Agent</strong>
+  <nav *ngIf="isAuth()" style="display:flex;gap:12px">
+    <a routerLink="/dashboard">Dashboard</a>
+    <a routerLink="/agent">Agent</a>
+  </nav>
+  <span style="margin-left:auto"></span>
+  <button *ngIf="!isAuth()" (click)="login()">Login</button>
+  <button *ngIf="isAuth()" (click)="logout()">Logout</button>
+</header>
+<main style="padding:16px">
+  <router-outlet></router-outlet>
+</main>
