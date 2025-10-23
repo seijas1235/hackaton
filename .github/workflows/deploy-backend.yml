@@ -63,23 +63,41 @@ jobs:
 
       - name: SAM Build
         working-directory: infra
-        run: sam build --use-container
-        
+        run: |
+          rm -rf .aws-sam
+          sam build --use-container --cached=false
+
       - name: Inspect built Lambda contents (site-packages)
         working-directory: infra
+        shell: bash
         run: |
           set -e
           echo "List functions built:"
-          find .aws-sam/build -maxdepth 1 -type d -printf "%f\n" | sed 's/^/ - /'
+          find .aws-sam/build -mindepth 1 -maxdepth 1 -type d -printf " - %f\n" || true
           echo "----"
-          # Cambia <GetKpisFunctionLogicalId> por el LogicalId real de tu función
-          FUNC_DIR=$(ls -d .aws-sam/build/* | grep -i '<GetKpisFunctionLogicalId>')
-          echo "Function dir: $FUNC_DIR"
-          echo "Python libs under site-packages:"
-          find "$FUNC_DIR" -type d -path "*/site-packages" -print -exec ls -1 "{}" \; | sed 's/^/   /'
-          echo "Check for pydantic and pydantic_core:"
-          if ! find "$FUNC_DIR" -type d -path "*/site-packages" -exec bash -lc 'ls -1 "{}" | grep -E "^pydantic|pydantic_core"' \; ; then
-            echo ">>> MISSING pydantic in built artifact" ; exit 2
+          missing=0
+          while IFS= read -r -d '' fn; do
+            echo "Function dir: $fn"
+            sp=$(find "$fn" -type d -path "*/site-packages" -print -quit || true)
+            if [ -z "$sp" ]; then
+              echo "  (no site-packages found)"
+              missing=1
+              continue
+            fi
+            echo "  site-packages: $sp"
+            ls -1 "$sp" | sed 's/^/    /' || true
+            echo "  Checking for pydantic & pydantic_core..."
+            if ! ls -1 "$sp" | grep -Eq '^pydantic(_core)?|^pydantic$'; then
+              echo "  >>> MISSING pydantic in $fn"
+              missing=1
+            else
+              echo "  OK: pydantic present"
+            fi
+            echo "----"
+          done < <(find .aws-sam/build -mindepth 1 -maxdepth 1 -type d -print0)
+
+          if [ "$missing" -ne 0 ]; then
+            echo "At least one function is missing pydantic in the built artifact"; exit 2
           fi
 
       - name: Show built template & guard against reserved keys

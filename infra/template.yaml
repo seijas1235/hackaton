@@ -47,40 +47,105 @@ Resources:
     Properties:
       CodeUri: ../backend
       Handler: src/adapters/handlers/get_kpis.handler
-      Policies: [{ DynamoDBReadPolicy: { TableName: finance } }]
-      Events: { Api: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /agent/tools/kpis, Method: GET } } }
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: finance
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /agent/tools/kpis
+            Method: GET
+    Metadata:
+      BuildMethod: python
+      BuildProperties:
+        Requirements: ../backend/requirements.txt
+        UseContainer: true
 
   Cashflow:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: ../backend
       Handler: src/adapters/handlers/cashflow_forecast.handler
-      Policies: [{ DynamoDBReadPolicy: { TableName: finance } }]
-      Events: { Api: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /agent/tools/cashflow, Method: GET } } }
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: finance
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /agent/tools/cashflow
+            Method: GET
+    Metadata:
+      BuildMethod: python
+      BuildProperties:
+        Requirements: ../backend/requirements.txt
+        UseContainer: true
 
   Anomalies:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: ../backend
       Handler: src/adapters/handlers/detect_anomalies.handler
-      Policies: [{ DynamoDBReadPolicy: { TableName: finance } }]
-      Events: { Api: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /agent/tools/anomalies, Method: GET } } }
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: finance
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /agent/tools/anomalies
+            Method: GET
+    Metadata:
+      BuildMethod: python
+      BuildProperties:
+        Requirements: ../backend/requirements.txt
+        UseContainer: true
 
   CreateReminder:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: ../backend
       Handler: src/adapters/handlers/create_collection_reminder.handler
-      Policies: [{ DynamoDBCrudPolicy: { TableName: finance } }]
-      Events: { Api: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /agent/actions/collection-reminder, Method: POST } } }
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: finance
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /agent/actions/collection-reminder
+            Method: POST
+    Metadata:
+      BuildMethod: python
+      BuildProperties:
+        Requirements: ../backend/requirements.txt
+        UseContainer: true
 
   ListActions:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: ../backend
       Handler: src/adapters/handlers/list_actions.handler
-      Policies: [{ DynamoDBReadPolicy: { TableName: finance } }]
-      Events: { Api: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /agent/actions, Method: GET } } }
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: finance
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /agent/actions
+            Method: GET
+    Metadata:
+      BuildMethod: python
+      BuildProperties:
+        Requirements: ../backend/requirements.txt
+        UseContainer: true
 
   AgentChat:
     Type: AWS::Serverless::Function
@@ -91,9 +156,23 @@ Resources:
       Policies:
         - Statement:
             Effect: Allow
-            Action: [ "bedrock:InvokeAgent", "bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream" ]
+            Action:
+              - "bedrock:InvokeAgent"
+              - "bedrock:InvokeModel"
+              - "bedrock:InvokeModelWithResponseStream"
             Resource: "*"
-      Events: { Api: { Type: HttpApi, Properties: { ApiId: !Ref HttpApi, Path: /agent/chat, Method: POST } } }
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /agent/chat
+            Method: POST
+    Metadata:
+      BuildMethod: python
+      BuildProperties:
+        Requirements: ../backend/requirements.txt
+        UseContainer: true
 
 Outputs:
   ApiUrl:
